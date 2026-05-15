@@ -1,0 +1,10 @@
+[project]
+name = "ctnet-conceptual-babel"
+version = "0.1.0"
+description = "Conceptual-relational Babel runtime: nodes, relations, u/p reciprocity and coherence tensor."
+requires-python = ">=3.10"
+dependencies = ["numpy>=1.24"]
+
+[tool.pytest.ini_options]
+python_files = ["test_*.py"]
+testpaths = ["."]

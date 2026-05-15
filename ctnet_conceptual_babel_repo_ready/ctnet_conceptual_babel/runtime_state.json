@@ -1,0 +1,86 @@
+{
+  "d": 48,
+  "memory": {
+    "memory": [
+      -0.0880302616334647,
+      -0.26306599485346843,
+      -0.1314122505524141,
+      0.16265876506037805,
+      -0.13666743338533793,
+      0.01114581840293791,
+      -0.024832461990644577,
+      0.08491845446902677,
+      -0.17473174789921733,
+      0.04491912584434736,
+      0.24934503561932825,
+      -0.33903680538430986,
+      0.01872144467291508,
+      0.005367975894498481,
+      -0.006212751618057899,
+      -0.15115014821749995,
+      0.06167292174146853,
+      -0.1584114836528767,
+      -0.2818334369130564,
+      -0.1365206591162412,
+      -0.2046331471181107,
+      -0.0643653021528073,
+      -0.07128977237694073,
+      -0.23917946299216988,
+      0.27530195476899016,
+      -0.0665517990631556,
+      0.1930448109970778,
+      -0.11566383911147714,
+      -0.0056977155784588215,
+      -0.1970835480736684,
+      0.06506885145808414,
+      0.03383416262019913,
+      -0.17931773855567815,
+      0.22538018899688472,
+      -0.07451991123131202,
+      -0.13761503149172177,
+      0.04061556737000953,
+      0.003911350322997495,
+      -0.02500651792514065,
+      0.007325544626031379,
+      -0.11473358339738289,
+      -0.196569635255519,
+      0.09999011184714338,
+      -0.010229626635717788,
+      0.05650682161448362,
+      -0.16432974101098816,
+      -0.06362953778717588,
+      -0.058561032632130076
+    ],
+    "episodes": [
+      {
+        "surface": "La Biblioteca de Babel queda tratada como campo potencial de complejos conceptuales, no como lista de caracteres. u/p abre la tensión entre actuación y forma; el tensor de coherencia pesa esa tensión y curva el potencial para que aparezca un complejo proyectable. Energía final=33.0044; cierre=0.9846. Nodos dominantes: biblioteca babel, potencial infinito, tensor coherencia, u p, nodo conceptual, relacion infinita.",
+        "nodes": [
+          "biblioteca_babel",
+          "fraccion_superficial",
+          "nodo_conceptual",
+          "potencial_infinito",
+          "relacion_infinita",
+          "tensor_coherencia",
+          "u_p"
+        ],
+        "relations": 42,
+        "energy": 33.00438594808182,
+        "closure": 0.9845524499687691
+      },
+      {
+        "surface": "La Biblioteca de Babel queda tratada como campo potencial de complejos conceptuales, no como lista de caracteres. u/p abre la tensión entre actuación y forma; el tensor de coherencia pesa esa tensión y curva el potencial para que aparezca un complejo proyectable. Energía final=26.8953; cierre=0.9874. Nodos dominantes: biblioteca babel, tensor coherencia, u p, nodo conceptual, relacion infinita, fraccion superficial.",
+        "nodes": [
+          "biblioteca_babel",
+          "fraccion_superficial",
+          "nodo_conceptual",
+          "relacion_infinita",
+          "tensor_coherencia",
+          "u_p"
+        ],
+        "relations": 30,
+        "energy": 26.895253819270806,
+        "closure": 0.9873936931770092
+      }
+    ]
+  }
+}

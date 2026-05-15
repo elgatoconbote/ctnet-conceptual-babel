@@ -1,0 +1,125 @@
+La Biblioteca de Babel queda tratada como campo potencial de complejos conceptuales, no como lista de caracteres. u/p abre la tensión entre actuación y forma; el tensor de coherencia pesa esa tensión y curva el potencial para que aparezca un complejo proyectable. Energía final=26.8953; cierre=0.9874. Nodos dominantes: biblioteca babel, tensor coherencia, u p, nodo conceptual, relacion infinita, fraccion superficial.
+{
+  "steps": [
+    {
+      "step": 0,
+      "candidates": 10,
+      "best_objective": -496.42340356454406,
+      "best_energy": 26.895253819270806,
+      "best_closure": 0.9873936931770092,
+      "best_nodes": [
+        "biblioteca_babel",
+        "fraccion_superficial",
+        "nodo_conceptual",
+        "relacion_infinita",
+        "tensor_coherencia",
+        "u_p"
+      ],
+      "best_history_tail": [
+        "La Biblioteca de Babel no son tokens: son nodos conceptuales relacionales bajo u/p y tensor de coherencia."
+      ]
+    },
+    {
+      "step": 1,
+      "candidates": 65,
+      "best_objective": -496.42340356454406,
+      "best_energy": 26.895253819270806,
+      "best_closure": 0.9873936931770092,
+      "best_nodes": [
+        "biblioteca_babel",
+        "fraccion_superficial",
+        "nodo_conceptual",
+        "relacion_infinita",
+        "tensor_coherencia",
+        "u_p"
+      ],
+      "best_history_tail": [
+        "La Biblioteca de Babel no son tokens: son nodos conceptuales relacionales bajo u/p y tensor de coherencia."
+      ]
+    },
+    {
+      "step": 2,
+      "candidates": 64,
+      "best_objective": -496.42340356454406,
+      "best_energy": 26.895253819270806,
+      "best_closure": 0.9873936931770092,
+      "best_nodes": [
+        "biblioteca_babel",
+        "fraccion_superficial",
+        "nodo_conceptual",
+        "relacion_infinita",
+        "tensor_coherencia",
+        "u_p"
+      ],
+      "best_history_tail": [
+        "La Biblioteca de Babel no son tokens: son nodos conceptuales relacionales bajo u/p y tensor de coherencia."
+      ]
+    },
+    {
+      "step": 3,
+      "candidates": 64,
+      "best_objective": -496.42340356454406,
+      "best_energy": 26.895253819270806,
+      "best_closure": 0.9873936931770092,
+      "best_nodes": [
+        "biblioteca_babel",
+        "fraccion_superficial",
+        "nodo_conceptual",
+        "relacion_infinita",
+        "tensor_coherencia",
+        "u_p"
+      ],
+      "best_history_tail": [
+        "La Biblioteca de Babel no son tokens: son nodos conceptuales relacionales bajo u/p y tensor de coherencia."
+      ]
+    },
+    {
+      "step": 4,
+      "candidates": 64,
+      "best_objective": -496.42340356454406,
+      "best_energy": 26.895253819270806,
+      "best_closure": 0.9873936931770092,
+      "best_nodes": [
+        "biblioteca_babel",
+        "fraccion_superficial",
+        "nodo_conceptual",
+        "relacion_infinita",
+        "tensor_coherencia",
+        "u_p"
+      ],
+      "best_history_tail": [
+        "La Biblioteca de Babel no son tokens: son nodos conceptuales relacionales bajo u/p y tensor de coherencia."
+      ]
+    },
+    {
+      "step": 5,
+      "candidates": 64,
+      "best_objective": -496.42340356454406,
+      "best_energy": 26.895253819270806,
+      "best_closure": 0.9873936931770092,
+      "best_nodes": [
+        "biblioteca_babel",
+        "fraccion_superficial",
+        "nodo_conceptual",
+        "relacion_infinita",
+        "tensor_coherencia",
+        "u_p"
+      ],
+      "best_history_tail": [
+        "La Biblioteca de Babel no son tokens: son nodos conceptuales relacionales bajo u/p y tensor de coherencia."
+      ]
+    }
+  ],
+  "energy": 26.895253819270806,
+  "closure": 0.9873936931770092,
+  "nodes": [
+    "biblioteca_babel",
+    "fraccion_superficial",
+    "nodo_conceptual",
+    "relacion_infinita",
+    "tensor_coherencia",
+    "u_p"
+  ],
+  "relations": 30,
+  "potential": "unbounded"
+}
