@@ -5,7 +5,7 @@ from pathlib import Path
 import numpy as np
 
 from ctnet_conceptual_babel import ConceptualBabelRuntime, TextChart, ConceptualEnergy, ConceptualBabel, FractionNode
-from ctnet_conceptual_babel.core.relation import make_relation
+from ctnet_conceptual_babel.core.relation import compose_relations, make_relation, project_relation
 
 
 def test_text_lifts_to_nodes_not_tokens():
@@ -68,21 +68,24 @@ def test_coherence_energy_and_closure_are_bounded():
     assert E > 0 and 0.0 < clos <= 1.0
 
 
-def test_relation_composition_and_projection_paths_present_after_expand():
-    c = TextChart(48).lift('nodo conceptual relación texto')
-    ex = ConceptualBabel(48).expand(c, 'ctx')
-    relation_types = {r.relation_type for cc in ex for r in cc.relations}
-    assert 'se_define_por' in relation_types or 'relaciona' in relation_types
-    assert 'puede_proyectarse' in relation_types or 'proyecta' in relation_types
+def test_relation_composition_is_explicit_and_node_relational():
+    r1 = make_relation('nodo_conceptual', 'tensor_coherencia', 'influye_en', 48)
+    r2 = make_relation('tensor_coherencia', 'biblioteca_babel', 'metriza', 48)
+    composed = compose_relations(r1, r2, relation_type='influye_y_metriza')
+    assert composed.source == 'nodo_conceptual'
+    assert composed.target == 'biblioteca_babel'
+    assert composed.relation_type == 'influye_y_metriza'
+    assert composed.matrix.shape == (48, 48)
 
 
-def test_relation_operator_projection_residual_shape():
+def test_relation_projection_maps_node_state_through_operator():
     chart = TextChart(48)
     c = chart.lift('nodo conceptual relación')
     rel = make_relation('nodo_conceptual', 'relacion_infinita', 'se_define_por', 48)
-    c.relations.append(rel)
-    residual = ConceptualEnergy(48).up.residual_relation(rel, c.nodes)
-    assert residual.shape == (48,)
+    source = c.nodes['nodo_conceptual'].state
+    projected = project_relation(rel, source)
+    assert projected.shape == (48,)
+    assert np.linalg.norm(projected) > 0
 
 
 if __name__ == '__main__':

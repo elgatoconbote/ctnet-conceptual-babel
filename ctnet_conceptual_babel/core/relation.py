@@ -34,3 +34,22 @@ def make_relation(source: str, target: str, relation_type: str, d: int, weight: 
     rng = rng_for(f'relation::{source}->{target}:{relation_type}')
     matrix = np.eye(d) + rng.normal(0.0, 0.025, (d, d))
     return RelationOperator(source, target, relation_type, matrix, weight=weight)
+
+
+def compose_relations(first: RelationOperator, second: RelationOperator, relation_type: str = 'composed') -> RelationOperator:
+    if first.target != second.source:
+        raise ValueError('Relation composition requires first.target == second.source')
+    matrix = second.matrix @ first.matrix
+    weight = float(first.weight * second.weight)
+    expected_alignment = float(min(first.expected_alignment, second.expected_alignment))
+    metadata = {
+        'composed_from': [
+            {'source': first.source, 'target': first.target, 'relation_type': first.relation_type},
+            {'source': second.source, 'target': second.target, 'relation_type': second.relation_type},
+        ]
+    }
+    return RelationOperator(first.source, second.target, relation_type, matrix, weight=weight, expected_alignment=expected_alignment, metadata=metadata)
+
+
+def project_relation(relation: RelationOperator, source_vector: np.ndarray) -> np.ndarray:
+    return relation.matrix @ np.asarray(source_vector, dtype=float)
