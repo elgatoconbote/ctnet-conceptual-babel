@@ -48,3 +48,5 @@ python demo_chat.py --trace
 ## Compatibilidad
 
 El paquete mantiene símbolos de uso común en nivel superior (`ConceptualBabelRuntime`, `make_relation`, `demo`).
+
+> Nota: este repositorio no usa ningún contenedor legado `ctnet_conceptual_babel_repo_ready/`.
