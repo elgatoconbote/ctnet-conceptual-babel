@@ -88,10 +88,48 @@ class CoherenceFlow:
 class ConceptualMemory:
     def __init__(self, d: int): self.d=d; self.memory=np.zeros(d); self.episodes=[]
     def read(self): return self.memory.copy()
+    def retrieve(self, query_complex: ConceptComplex, top_k: int = 4) -> List[Dict[str, Any]]:
+        if not self.episodes:
+            return []
+        query_state = query_complex.active_state()
+        out: List[Dict[str, Any]] = []
+        for ep in self.episodes:
+            state = np.asarray(ep.get('active_state', np.zeros(self.d)), dtype=float)
+            denom = float(np.linalg.norm(state) * np.linalg.norm(query_state) + 1e-12)
+            sim = float(np.dot(state, query_state) / denom)
+            node_overlap = len(set(ep.get('nodes', [])) & set(query_complex.nodes.keys())) / max(1, len(query_complex.nodes))
+            influence = float(max(0.0, 0.68 * sim + 0.32 * node_overlap))
+            out.append({
+                'episode_id': ep.get('episode_id'),
+                'surface': ep.get('surface', ''),
+                'nodes': ep.get('nodes', []),
+                'similarity': sim,
+                'node_overlap': node_overlap,
+                'influence_strength': influence,
+            })
+        out.sort(key=lambda x: x['influence_strength'], reverse=True)
+        return out[:top_k]
+    def memory_from_retrieval(self, retrieved: List[Dict[str, Any]]) -> np.ndarray:
+        if not retrieved:
+            return self.read()
+        accum = np.zeros(self.d, dtype=float)
+        total = 0.0
+        for item in retrieved:
+            ep = next((e for e in self.episodes if e.get('episode_id') == item['episode_id']), None)
+            if ep is None:
+                continue
+            w = max(0.0, float(item.get('influence_strength', 0.0)))
+            accum += w * np.asarray(ep.get('active_state', np.zeros(self.d)), dtype=float)
+            total += w
+        if total < 1e-9:
+            return self.read()
+        return normalize(0.55 * self.read() + 0.45 * normalize(accum / total))
     def reenter(self, complex_, surface, trace):
-        active=complex_.active_state(); self.memory = active if np.linalg.norm(self.memory) < 1e-9 else normalize(0.86*self.memory+0.14*active)
+        active=complex_.active_state(); prev=self.memory.copy(); self.memory = active if np.linalg.norm(self.memory) < 1e-9 else normalize(0.86*self.memory+0.14*active)
         for n in complex_.nodes.values(): n.memory_trace=min(1.0,n.memory_trace+0.04)
-        self.episodes.append({'surface':surface,'nodes':sorted(list(complex_.nodes.keys())),'relations':len(complex_.relations),'energy':trace.get('energy'),'closure':trace.get('closure')}); self.episodes=self.episodes[-200:]
+        ep_id = (self.episodes[-1]['episode_id'] + 1) if self.episodes else 1
+        reentry_delta = float(np.linalg.norm(self.memory - prev))
+        self.episodes.append({'episode_id': ep_id, 'surface':surface,'nodes':sorted(list(complex_.nodes.keys())),'relations':len(complex_.relations),'energy':trace.get('energy'),'closure':trace.get('closure'), 'active_state': active.tolist(), 'reentry_delta': reentry_delta}); self.episodes=self.episodes[-200:]
     def as_serializable(self): return {'memory': self.memory.tolist(), 'episodes': self.episodes}
     @staticmethod
     def from_serializable(d:int,data:Dict[str,Any]): m=ConceptualMemory(d); m.memory=np.asarray(data.get('memory',m.memory),dtype=float); m.episodes=list(data.get('episodes',[])); return m
@@ -103,7 +141,22 @@ class ConceptualBabelRuntime:
         self.d=d; self.chart=TextChart(d); self.flow=CoherenceFlow(d,beam=beam,steps=steps,temp=1.0); self.memory=ConceptualMemory(d); self.state_path=Path(state_path) if state_path else None
         if self.state_path and self.state_path.exists(): self.load(self.state_path)
     def respond(self, surface: str) -> Dict[str, Any]:
-        complex0=self.chart.lift(surface); best,trace=self.flow.run(complex0,context=surface,memory=self.memory.read()); response=self.chart.project(best,trace); self.memory.reenter(best,response,trace)
+        complex0=self.chart.lift(surface)
+        retrieved = self.memory.retrieve(complex0, top_k=4)
+        retrieval_memory = self.memory.memory_from_retrieval(retrieved)
+        best,trace=self.flow.run(complex0,context=surface,memory=retrieval_memory)
+        trace['memory_retrieval'] = {
+            'retrieved': [{'episode_id': x['episode_id'], 'nodes': x['nodes'][:8], 'similarity': round(x['similarity'], 6), 'influence_strength': round(x['influence_strength'], 6)} for x in retrieved],
+            'influence_total': float(sum(x['influence_strength'] for x in retrieved)),
+        }
+        response=self.chart.project(best,trace)
+        prev_memory = self.memory.read()
+        self.memory.reenter(best,response,trace)
+        trace['reentry'] = {
+            'memory_shift_norm': float(np.linalg.norm(self.memory.read() - prev_memory)),
+            'episode_count': len(self.memory.episodes),
+            'last_episode_id': self.memory.episodes[-1]['episode_id'] if self.memory.episodes else None,
+        }
         if self.state_path: self.save(self.state_path)
         return {'input':surface,'response':response,'complex':best.as_serializable(),'trace':trace,'memory_episodes':len(self.memory.episodes)}
     def save(self, path: Path): path.parent.mkdir(parents=True, exist_ok=True); path.write_text(json.dumps({'d':self.d,'memory':self.memory.as_serializable()},ensure_ascii=False,indent=2),encoding='utf-8')

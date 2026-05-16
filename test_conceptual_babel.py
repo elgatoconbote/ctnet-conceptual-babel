@@ -88,6 +88,49 @@ def test_relation_projection_maps_node_state_through_operator():
     assert np.linalg.norm(projected) > 0
 
 
+def test_multi_turn_memory_accumulation_and_retrieval_trace():
+    rt = ConceptualBabelRuntime(d=48, beam=5, steps=4)
+    rt.respond('Babel como campo conceptual')
+    out2 = rt.respond('Recuerda Babel y tensor de coherencia')
+    assert out2['memory_episodes'] == 2
+    retrieved = out2['trace']['memory_retrieval']['retrieved']
+    assert isinstance(retrieved, list)
+    assert retrieved and retrieved[0]['episode_id'] == 1
+
+
+def test_reentry_is_visible_in_trace_and_affects_projection():
+    rt = ConceptualBabelRuntime(d=48, beam=5, steps=4)
+    first = rt.respond('nodo conceptual relación')
+    second = rt.respond('nodo conceptual relación')
+    assert 'reentry' in second['trace']
+    assert second['trace']['reentry']['memory_shift_norm'] >= 0.0
+    assert first['response'] != second['response']
+
+
+def test_save_load_preserves_memory_episodes_and_vectors(tmp_path):
+    state = tmp_path / 'runtime_state.json'
+    rt = ConceptualBabelRuntime(d=48, beam=5, steps=3, state_path=str(state))
+    rt.respond('primer episodio de memoria')
+    rt.respond('segundo episodio de memoria')
+    rt2 = ConceptualBabelRuntime(d=48, beam=5, steps=3, state_path=str(state))
+    assert len(rt2.memory.episodes) == 2
+    assert np.linalg.norm(rt2.memory.read()) > 0.0
+
+
+def test_projection_not_static_when_memory_changes():
+    rt = ConceptualBabelRuntime(d=48, beam=6, steps=5)
+    a = rt.respond('Biblioteca Babel tensor coherencia')
+    b = rt.respond('Biblioteca Babel tensor coherencia')
+    assert a['response'] != b['response']
+    assert 'Memoria activa' in b['response']
+
+
+def test_no_token_ontology_regression():
+    out = ConceptualBabelRuntime(d=48, beam=5, steps=4).respond('No tokens, solo nodos conceptuales')
+    node_names = set(out['complex']['nodes'].keys())
+    assert 'token_ontology' not in node_names
+
+
 if __name__ == '__main__':
     import pytest
     raise SystemExit(pytest.main([__file__]))
