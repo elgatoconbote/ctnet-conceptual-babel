@@ -68,31 +68,7 @@ class TextChart:
         return 'stabilize'
 
     def project(self, complex_: ConceptComplex, trace: Optional[Dict[str, Any]] = None) -> str:
-        names = list(complex_.nodes.keys())
-        has = set(names)
-        core = 'Activo el campo conceptual recibido, estabilizo las relaciones dominantes y proyecto solo la parte que tiene cierre suficiente.'
-        if 'biblioteca_babel' in has and 'tensor_coherencia' in has and 'u_p' in has:
-            core = 'La Biblioteca de Babel queda tratada como campo potencial de complejos conceptuales, no como lista de caracteres. u/p abre la tensión entre actuación y forma; el tensor de coherencia pesa esa tensión y curva el potencial para que aparezca un complejo proyectable.'
-        elif 'nodo_conceptual' in has and 'relacion_infinita' in has:
-            core = 'El centro activo es un complejo de nodos conceptuales relacionales. Cada nodo conserva una sección finita, pero su potencial queda abierto por expansión, relación, refinamiento y proyección.'
-        elif 'realizacion_codigo' in has:
-            core = 'La realización correcta es construir un runtime donde el texto solo sea una carta: se eleva a nodos, se estabiliza por energía u/p bajo H, y luego se proyecta en español.'
-        if trace and 'energy' in trace and 'closure' in trace:
-            core += f" Energía final={trace['energy']:.4f}; cierre={trace['closure']:.4f}."
-        if trace and 'memory_retrieval' in trace:
-            mem = trace['memory_retrieval']
-            retrieved = mem.get('retrieved', [])
-            total = float(mem.get('total_influence', 0.0))
-            if retrieved:
-                top = retrieved[0]
-                core += f" Memoria episódica activa: episodio {top.get('episode_id')} con similitud={float(top.get('similarity',0.0)):.3f}; influencia total={total:.3f}."
-            else:
-                core += " Memoria episódica activa: sin episodios recuperados."
-        if trace and 'reentry_gain' in trace:
-            rg = float(trace.get('reentry_gain', 0.0))
-            if rg > 0.22:
-                core += " Reentrada fuerte: el campo incorpora huellas previas y desplaza el balance de cierre."
-            elif rg > 0.0:
-                core += " Reentrada moderada: se conserva continuidad conceptual sin fijar texto estático."
-        core += ' Nodos dominantes: ' + ', '.join(n.replace('_', ' ') for n in names[:6]) + '.'
-        return core
+        from ..surface import BabelSurfaceGenerator
+
+        emitter = BabelSurfaceGenerator(self.d)
+        return emitter.emit(complex_, trace or {})
