@@ -5,7 +5,7 @@ from .core.coherence import ConceptualEnergy, CoherenceTensor
 from .core.complex import ConceptComplex
 from .core.node import ConceptNode, FractionNode
 from .core.relation import RelationOperator, compose_relations, make_relation, project_relation
-from .runtime import ConceptualBabel, ConceptualBabelRuntime, ConceptualMemory, CoherenceFlow
+from .runtime import ConceptualBabel, ConceptualBabelRuntime, ConceptualMemory, CoherenceFlow, CoherenceConditionedBabelGenerator
 
 
 def demo(message: str = 'La Biblioteca de Babel no son tokens: son nodos conceptuales relacionales.') -> str:
@@ -17,5 +17,5 @@ def demo(message: str = 'La Biblioteca de Babel no son tokens: son nodos concept
 __all__ = [
     'TextChart', 'ConceptualEnergy', 'CoherenceTensor', 'ConceptComplex',
     'ConceptNode', 'FractionNode', 'RelationOperator', 'make_relation', 'compose_relations', 'project_relation',
-    'ConceptualBabel', 'ConceptualBabelRuntime', 'ConceptualMemory', 'CoherenceFlow', 'demo'
+    'ConceptualBabel', 'CoherenceConditionedBabelGenerator', 'ConceptualBabelRuntime', 'ConceptualMemory', 'CoherenceFlow', 'demo'
 ]

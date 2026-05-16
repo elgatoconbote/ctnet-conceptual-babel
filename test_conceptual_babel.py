@@ -137,3 +137,42 @@ def test_projection_not_static_under_state_change():
 if __name__ == '__main__':
     import pytest
     raise SystemExit(pytest.main([__file__]))
+
+
+def test_generator_exposes_generate_closed_complex():
+    rt = ConceptualBabelRuntime(d=48)
+    assert hasattr(rt.generator, 'generate_closed_complex')
+
+
+def test_trace_marks_one_shot_and_conditioned():
+    out = ConceptualBabelRuntime(d=48).respond('Babel coherente con u/p y tensor')
+    assert out['trace']['generated_one_shot'] is True
+    assert out['trace']['babel_generator_conditioned'] is True
+
+
+def test_runtime_respond_has_no_candidate_ranking_trace():
+    out = ConceptualBabelRuntime(d=48).respond('sin ranking de candidatos')
+    assert 'candidates' not in out['trace']
+    assert 'candidate_distribution' not in out['trace']
+
+
+def test_output_complex_exists_before_projection_and_projection_uses_complex():
+    rt = ConceptualBabelRuntime(d=48)
+    out = rt.respond('proyecta desde complejo cerrado')
+    assert out['complex']['generated_one_shot'] is True
+    assert out['trace']['projection_chart'] == 'text'
+
+
+def test_conditioning_changes_complex_with_memory_and_regime_change():
+    rt = ConceptualBabelRuntime(d=48)
+    a = rt.respond('Babel tensor coherencia')
+    b = rt.respond('Implementa Babel tensor coherencia en código')
+    assert a['trace']['closed_complex_id'] != b['trace']['closed_complex_id']
+
+
+def test_empty_input_continues_prior_closed_complex_stream():
+    rt = ConceptualBabelRuntime(d=48)
+    rt.respond('primer campo')
+    out = rt.respond('')
+    assert out['trace']['reentry_applied'] is True
+    assert out['trace']['generated_one_shot'] is True
