@@ -2,15 +2,15 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence
 
 import numpy as np
 
 from .charts.text import TextChart
 from .core.coherence import ConceptualEnergy
-from .core.complex import ConceptComplex
+from .core.complex import ActiveNodalComplex, ConceptComplex
 from .core.node import ConceptNode, normalize
-from .core.relation import make_relation
+from .core.relation import compose_relations, make_relation
 
 
 def softmax_neg_energy(energies: Sequence[float], temp: float = 1.0) -> np.ndarray:
@@ -65,24 +65,56 @@ class ConceptualBabel:
         c.history.append('add:cierre_estructural'); return [c]
 
 
-class CoherenceFlow:
-    def __init__(self, d: int, beam: int = 6, steps: int = 5, temp: float = 1.0):
-        self.d, self.beam, self.steps, self.temp = d, beam, steps, temp
-        self.babel = ConceptualBabel(d); self.energy_model = ConceptualEnergy(d)
-    def run(self, initial: ConceptComplex, context: str, memory: Optional[np.ndarray] = None):
-        frontier=[(initial.clone(),1.0)]; trace={'steps':[]}
-        best_complex=initial.clone(); best_energy,_,_,_=self.energy_model.energy(best_complex,memory); best_closure=self.energy_model.closure(best_complex,memory)
-        for step in range(self.steps):
-            candidates=[]
-            for c,_ in frontier: candidates.append(c); candidates.extend(self.babel.expand(c,context))
-            scored=[]
-            for c in candidates:
-                E,_,_,_=self.energy_model.energy(c,memory); closure=self.energy_model.closure(c,memory); scored.append((E-0.25*self.energy_model.error_dim*closure,E,closure,c))
-            kept=sorted(scored,key=lambda x:x[0])[:self.beam]; w=softmax_neg_energy([x[0] for x in kept],self.temp); frontier=[(kept[i][3],float(w[i])) for i in range(len(kept))]
-            if kept[0][1] < best_energy or kept[0][2] > best_closure: best_energy, best_closure, best_complex = kept[0][1], kept[0][2], kept[0][3].clone()
-            trace['steps'].append({'step':step,'candidates':len(candidates),'best_objective':float(kept[0][0]),'best_energy':float(kept[0][1]),'best_closure':float(kept[0][2]),'best_nodes':sorted(list(kept[0][3].nodes.keys()))[:12],'best_history_tail':kept[0][3].history[-4:]})
-        trace.update({'energy':float(best_energy),'closure':float(best_closure),'nodes':sorted(list(best_complex.nodes.keys())),'relations':len(best_complex.relations),'potential':best_complex.potential_cardinality})
-        return best_complex, trace
+class CoherenceConditionedBabelGenerator:
+    def __init__(self, d: int):
+        self.d = d
+        self.babel = ConceptualBabel(d)
+        self.energy_model = ConceptualEnergy(d)
+        self.last_closed_complex: Optional[ActiveNodalComplex] = None
+
+    def _build_conditioned_field(self, base: ConceptComplex, u_p_vec: np.ndarray, memory: np.ndarray, regime: str) -> ConceptComplex:
+        conditioned = base.clone()
+        conditioned.regime = regime or conditioned.regime
+        for node in conditioned.nodes.values():
+            node.state = normalize(0.60 * node.state + 0.25 * u_p_vec + 0.15 * memory)
+        return conditioned
+
+    def _u_p_field(self, x: np.ndarray) -> np.ndarray:
+        if len(x) != self.d:
+            return np.zeros(self.d)
+        u, p = self.energy_model.up.split(x)
+        up = np.concatenate([np.tanh(p @ self.energy_model.up.F), np.tanh(u @ self.energy_model.up.G)])
+        return normalize(up)
+
+    def generate_closed_complex(self, surface: str, state: ConceptComplex, memory: np.ndarray, regime: str) -> ActiveNodalComplex:
+        source = state.clone() if surface.strip() else (self.last_closed_complex.clone() if self.last_closed_complex else state.clone())
+        u_p_vec = self._u_p_field(source.active_state()) if source.nodes else np.zeros(self.d)
+        conditioned = self._build_conditioned_field(source, u_p_vec, memory, regime)
+        expanded = self.babel.expand(conditioned, surface or "continuidad")
+        emitted = expanded[0].clone() if expanded else conditioned
+        E, e, _, _ = self.energy_model.energy(emitted, memory)
+        clos = self.energy_model.closure(emitted, memory)
+        compositions = []
+        if len(emitted.relations) >= 2 and emitted.relations[0].target == emitted.relations[1].source:
+            compositions.append(compose_relations(emitted.relations[0], emitted.relations[1], relation_type='compuesta_uno_disparo'))
+        out = ActiveNodalComplex(
+            nodes=emitted.nodes,
+            relations=emitted.relations,
+            regime=emitted.regime,
+            closure_goal=emitted.closure_goal,
+            history=emitted.history + ['one_shot_conditioned_generation'],
+            potential_cardinality=emitted.potential_cardinality,
+            relation_compositions=compositions,
+            projection_chart='text',
+            closure_state='closed' if clos > 0.20 else 'partially_closed',
+            u_p_residual=e[: self.d].tolist(),
+            coherence_energy=float(E),
+            coherence_mass=float(clos),
+            generated_one_shot=True,
+            closed_complex_id=f'cx-{len(emitted.nodes)}-{len(emitted.relations)}-{abs(hash(surface)) % 100000}',
+        )
+        self.last_closed_complex = out.clone()
+        return out
 
 
 class ConceptualMemory:
@@ -130,7 +162,7 @@ class ConceptualMemory:
 class ConceptualBabelRuntime:
     def __init__(self, d: int = 48, beam: int = 7, steps: int = 6, state_path: Optional[str] = None):
         if d % 2 != 0: raise ValueError('d must be even for u/p split')
-        self.d=d; self.chart=TextChart(d); self.flow=CoherenceFlow(d,beam=beam,steps=steps,temp=1.0); self.memory=ConceptualMemory(d); self.state_path=Path(state_path) if state_path else None
+        self.d=d; self.chart=TextChart(d); self.generator=CoherenceConditionedBabelGenerator(d); self.memory=ConceptualMemory(d); self.state_path=Path(state_path) if state_path else None
         if self.state_path and self.state_path.exists(): self.load(self.state_path)
     def respond(self, surface: str) -> Dict[str, Any]:
         complex0=self.chart.lift(surface)
@@ -138,14 +170,15 @@ class ConceptualBabelRuntime:
         influence_vec=self.memory.influence_vector(retrieved)
         base_memory=self.memory.read()
         flow_memory=normalize(0.80 * base_memory + 0.20 * influence_vec) if np.linalg.norm(influence_vec) > 1e-9 else base_memory
-        best,trace=self.flow.run(complex0,context=surface,memory=flow_memory)
+        closed = self.generator.generate_closed_complex(surface=surface, state=complex0, memory=flow_memory, regime=complex0.regime)
+        trace={'generated_one_shot': True, 'conditioning_operator': 'u_p_H', 'babel_generator_conditioned': True, 'u_p_residual_norm': float(np.linalg.norm(closed.u_p_residual)), 'coherence_energy': float(closed.coherence_energy), 'coherence_mass': float(closed.coherence_mass), 'projection_chart': closed.projection_chart, 'closed_complex_id': closed.closed_complex_id, 'reentry_applied': True, 'closure': float(closed.coherence_mass), 'energy': float(closed.coherence_energy)}
         total_influence=float(sum(x['influence'] for x in retrieved))
         trace['memory_retrieval']={'retrieved':retrieved,'total_influence':total_influence}
         trace['reentry_gain']=min(0.32, 0.14 + 0.22 * total_influence)
-        response=self.chart.project(best,trace)
-        self.memory.reenter(best,response,trace)
+        response=self.chart.project(closed,trace)
+        self.memory.reenter(closed,response,trace)
         if self.state_path: self.save(self.state_path)
-        return {'input':surface,'response':response,'complex':best.as_serializable(),'trace':trace,'memory_episodes':len(self.memory.episodes)}
+        return {'input':surface,'response':response,'complex':closed.as_serializable(),'trace':trace,'memory_episodes':len(self.memory.episodes)}
     def save(self, path: Path): path.parent.mkdir(parents=True, exist_ok=True); path.write_text(json.dumps({'d':self.d,'memory':self.memory.as_serializable()},ensure_ascii=False,indent=2),encoding='utf-8')
     def load(self, path: Path):
         data=json.loads(path.read_text(encoding='utf-8'))
