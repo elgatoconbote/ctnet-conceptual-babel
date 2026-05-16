@@ -1,0 +1,55 @@
+from __future__ import annotations
+
+import json
+from dataclasses import dataclass, field
+from typing import Any, Dict
+
+import numpy as np
+
+from .node import rng_for
+
+
+@dataclass
+class RelationOperator:
+    source: str
+    target: str
+    relation_type: str
+    matrix: np.ndarray
+    weight: float = 1.0
+    expected_alignment: float = 0.72
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def clone(self) -> 'RelationOperator':
+        return RelationOperator(self.source, self.target, self.relation_type, self.matrix.copy(), float(self.weight), float(self.expected_alignment), json.loads(json.dumps(self.metadata, ensure_ascii=False)))
+
+    def as_serializable(self) -> Dict[str, Any]:
+        return {'source': self.source, 'target': self.target, 'relation_type': self.relation_type, 'matrix': self.matrix.tolist(), 'weight': self.weight, 'expected_alignment': self.expected_alignment, 'metadata': self.metadata}
+
+    @staticmethod
+    def from_serializable(d: Dict[str, Any]) -> 'RelationOperator':
+        return RelationOperator(d['source'], d['target'], d['relation_type'], np.asarray(d['matrix'], dtype=float), float(d.get('weight', 1.0)), float(d.get('expected_alignment', 0.72)), dict(d.get('metadata', {})))
+
+
+def make_relation(source: str, target: str, relation_type: str, d: int, weight: float = 1.0) -> RelationOperator:
+    rng = rng_for(f'relation::{source}->{target}:{relation_type}')
+    matrix = np.eye(d) + rng.normal(0.0, 0.025, (d, d))
+    return RelationOperator(source, target, relation_type, matrix, weight=weight)
+
+
+def compose_relations(first: RelationOperator, second: RelationOperator, relation_type: str = 'composed') -> RelationOperator:
+    if first.target != second.source:
+        raise ValueError('Relation composition requires first.target == second.source')
+    matrix = second.matrix @ first.matrix
+    weight = float(first.weight * second.weight)
+    expected_alignment = float(min(first.expected_alignment, second.expected_alignment))
+    metadata = {
+        'composed_from': [
+            {'source': first.source, 'target': first.target, 'relation_type': first.relation_type},
+            {'source': second.source, 'target': second.target, 'relation_type': second.relation_type},
+        ]
+    }
+    return RelationOperator(first.source, second.target, relation_type, matrix, weight=weight, expected_alignment=expected_alignment, metadata=metadata)
+
+
+def project_relation(relation: RelationOperator, source_vector: np.ndarray) -> np.ndarray:
+    return relation.matrix @ np.asarray(source_vector, dtype=float)
