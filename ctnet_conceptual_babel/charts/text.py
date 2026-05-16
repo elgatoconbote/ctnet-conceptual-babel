@@ -79,5 +79,11 @@ class TextChart:
             core = 'La realización correcta es construir un runtime donde el texto solo sea una carta: se eleva a nodos, se estabiliza por energía u/p bajo H, y luego se proyecta en español.'
         if trace and 'energy' in trace and 'closure' in trace:
             core += f" Energía final={trace['energy']:.4f}; cierre={trace['closure']:.4f}."
+        if trace and trace.get('memory_retrieval'):
+            top = trace['memory_retrieval'][0]
+            core += f" Reentrada activa desde episodio {top['episode_id']} (sim={top['similarity']:.3f}, influencia={top['influence']:.3f})."
+        if trace and trace.get('reentry'):
+            r = trace['reentry']
+            core += f" Episodios: {r.get('prior_episode_count', 0)}→{r.get('posterior_episode_count', r.get('prior_episode_count', 0))}."
         core += ' Nodos dominantes: ' + ', '.join(n.replace('_', ' ') for n in names[:6]) + '.'
         return core

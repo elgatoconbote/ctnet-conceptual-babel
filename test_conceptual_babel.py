@@ -55,6 +55,55 @@ def test_reentry_updates_memory_and_episode_count():
     assert not np.allclose(m1, rt.memory.read())
 
 
+def test_multi_turn_memory_accumulation_and_retrieval_trace():
+    rt = ConceptualBabelRuntime(d=48, beam=5, steps=3)
+    rt.respond('Babel como campo conceptual relacional')
+    out2 = rt.respond('Retoma Babel y tensor de coherencia con memoria')
+    assert out2['memory_episodes'] == 2
+    assert 'memory_retrieval' in out2['trace']
+    assert isinstance(out2['trace']['memory_retrieval'], list)
+
+
+def test_episode_retrieval_contains_similarity_and_episode_id():
+    rt = ConceptualBabelRuntime(d=48, beam=5, steps=3)
+    rt.respond('nodos conceptuales y tensor')
+    out = rt.respond('nodos conceptuales y tensor otra vez')
+    retrieval = out['trace']['memory_retrieval']
+    assert retrieval
+    assert {'episode_id', 'similarity', 'influence', 'nodes'}.issubset(retrieval[0].keys())
+
+
+def test_reentry_changes_later_trace_or_response():
+    rt = ConceptualBabelRuntime(d=48, beam=5, steps=3)
+    out1 = rt.respond('Define Babel como campo conceptual')
+    out2 = rt.respond('Define Babel como campo conceptual')
+    assert out1['trace'].get('reentry') != out2['trace'].get('reentry') or out1['response'] != out2['response']
+
+
+def test_save_load_preserves_memory_and_retrieval(tmp_path):
+    state = tmp_path / 'state.json'
+    rt1 = ConceptualBabelRuntime(d=48, beam=5, steps=3, state_path=str(state))
+    rt1.respond('primer episodio de memoria')
+    rt2 = ConceptualBabelRuntime(d=48, beam=5, steps=3, state_path=str(state))
+    out = rt2.respond('episodio relacionado con memoria')
+    assert len(rt2.memory.episodes) >= 2
+    assert 'memory_retrieval' in out['trace']
+
+
+def test_projection_stability_with_state_change():
+    rt = ConceptualBabelRuntime(d=48, beam=5, steps=3)
+    r1 = rt.respond('Babel no es lista de cadenas')['response']
+    r2 = rt.respond('Babel no es lista de cadenas')['response']
+    assert r1 != r2
+
+
+def test_no_token_ontology_regression():
+    out = ConceptualBabelRuntime(d=48, beam=5, steps=3).respond('No token-centric generation; solo nodos.')
+    node_names = set(out['complex']['nodes'].keys())
+    assert 'fraccion_superficial' in node_names
+    assert 'token' not in node_names and 'tokens' not in node_names
+
+
 def test_conceptual_lifting_adds_surface_fraction_node():
     c = TextChart(48).lift('texto breve')
     assert 'fraccion_superficial' in c.nodes and isinstance(c.nodes['fraccion_superficial'], FractionNode)
