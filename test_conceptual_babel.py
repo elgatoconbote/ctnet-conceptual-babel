@@ -5,6 +5,7 @@ from pathlib import Path
 import numpy as np
 
 from ctnet_conceptual_babel import ConceptualBabelRuntime, TextChart, ConceptualEnergy, ConceptualBabel, FractionNode
+from ctnet_conceptual_babel.runtime import CoherenceConditionedBabelGenerator
 from ctnet_conceptual_babel.core.relation import compose_relations, make_relation, project_relation
 
 
@@ -31,12 +32,11 @@ def test_tensor_up_energy_defined_on_complex():
     assert E > 0 and len(e) == len(D) and L.shape[0] == len(D)
 
 
-def test_flow_reduces_or_stabilizes_energy():
-    rt = ConceptualBabelRuntime(d=48, beam=7, steps=6)
-    c0 = rt.chart.lift('La biblioteca de babel son nodos y relaciones bajo tensor de coherencia')
-    E0, _, _, _ = rt.flow.energy_model.energy(c0, rt.memory.read())
-    _, trace = rt.flow.run(c0, context='test', memory=rt.memory.read())
-    assert trace['energy'] <= E0 or trace['closure'] >= rt.flow.energy_model.closure(c0, rt.memory.read())
+def test_generator_exposes_generate_closed_complex():
+    g = CoherenceConditionedBabelGenerator(48)
+    c0 = TextChart(48).lift('babel tensor coherencia u/p')
+    out = g.generate_closed_complex('babel', c0, np.zeros(48), c0.regime)
+    assert out.generated_one_shot is True and hasattr(g, 'generate_closed_complex')
 
 
 def test_runtime_chat_persists_state(tmp_path):
@@ -132,6 +132,50 @@ def test_projection_not_static_under_state_change():
     rt.respond('mensaje intermedio sobre memoria y reentrada conceptual')
     r3 = rt.respond(prompt)['response']
     assert r1 != r3
+
+
+def test_trace_one_shot_and_conditioned_flags():
+    rt = ConceptualBabelRuntime(d=48, beam=5, steps=4)
+    out = rt.respond('Babel u/p H condicionado')
+    assert out['trace']['generated_one_shot'] is True
+    assert out['trace']['babel_generator_conditioned'] is True
+
+
+def test_runtime_respond_does_not_use_candidate_ranking_api():
+    rt = ConceptualBabelRuntime(d=48, beam=5, steps=4)
+    out = rt.respond('consulta conceptual')
+    assert 'steps' not in out['trace']
+    assert 'candidate_distribution' not in out['trace']
+
+
+def test_complex_exists_before_projection_and_projection_receives_complex():
+    rt = ConceptualBabelRuntime(d=48, beam=5, steps=4)
+    captured = {}
+    original = rt.chart.project
+    def wrapped(complex_, trace=None):
+        captured['complex_type'] = type(complex_).__name__
+        return original(complex_, trace)
+    rt.chart.project = wrapped
+    rt.respond('nodo relacional')
+    assert captured['complex_type'] in {'ActiveNodalComplex', 'ConceptComplex'}
+
+
+def test_conditioning_changes_complex_when_state_memory_regime_changes():
+    g = CoherenceConditionedBabelGenerator(48)
+    chart = TextChart(48)
+    a = chart.lift('babel tensor')
+    b = chart.lift('implementa codigo babel')
+    c1 = g.generate_closed_complex('babel tensor', a, np.zeros(48), 'conceptual')
+    c2 = g.generate_closed_complex('implementa codigo babel', b, np.ones(48) / np.sqrt(48), 'implementation')
+    assert c1.signature() != c2.signature() or c1.coherence_energy != c2.coherence_energy
+
+
+def test_empty_input_continues_from_prior_closed_complex():
+    rt = ConceptualBabelRuntime(d=48, beam=5, steps=4)
+    first = rt.respond('secuencia conceptual babel')
+    second = rt.respond('')
+    assert first['complex']['closed_complex_id'] != second['complex']['closed_complex_id']
+    assert second['trace']['generated_one_shot'] is True
 
 
 if __name__ == '__main__':

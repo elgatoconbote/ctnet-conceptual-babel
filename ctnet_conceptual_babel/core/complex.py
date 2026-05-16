@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 
 import numpy as np
 
@@ -35,3 +35,47 @@ class ConceptComplex:
     @staticmethod
     def from_serializable(d: Dict[str, Any]) -> 'ConceptComplex':
         return ConceptComplex(nodes={k: ConceptNode.from_serializable(v) for k, v in d.get('nodes', {}).items()}, relations=[RelationOperator.from_serializable(r) for r in d.get('relations', [])], regime=d.get('regime', 'technical'), closure_goal=d.get('closure_goal', 'explain'), history=list(d.get('history', [])), potential_cardinality=d.get('potential_cardinality', 'unbounded'))
+
+
+@dataclass
+class ActiveNodalComplex(ConceptComplex):
+    relation_compositions: List[RelationOperator] = field(default_factory=list)
+    projection_chart: str = 'text'
+    closure_state: str = 'closed'
+    u_p_residual: List[float] = field(default_factory=list)
+    coherence_energy: float = 0.0
+    coherence_mass: float = 0.0
+    generated_one_shot: bool = True
+    closed_complex_id: Optional[str] = None
+
+    def clone(self) -> 'ActiveNodalComplex':
+        return ActiveNodalComplex(
+            nodes={k: v.clone() for k, v in self.nodes.items()},
+            relations=[r.clone() for r in self.relations],
+            regime=self.regime,
+            closure_goal=self.closure_goal,
+            history=list(self.history),
+            potential_cardinality=self.potential_cardinality,
+            relation_compositions=[r.clone() for r in self.relation_compositions],
+            projection_chart=self.projection_chart,
+            closure_state=self.closure_state,
+            u_p_residual=list(self.u_p_residual),
+            coherence_energy=self.coherence_energy,
+            coherence_mass=self.coherence_mass,
+            generated_one_shot=self.generated_one_shot,
+            closed_complex_id=self.closed_complex_id,
+        )
+
+    def as_serializable(self) -> Dict[str, Any]:
+        base = super().as_serializable()
+        base.update({
+            'relation_compositions': [r.as_serializable() for r in self.relation_compositions],
+            'projection_chart': self.projection_chart,
+            'closure_state': self.closure_state,
+            'u_p_residual': self.u_p_residual,
+            'coherence_energy': self.coherence_energy,
+            'coherence_mass': self.coherence_mass,
+            'generated_one_shot': self.generated_one_shot,
+            'closed_complex_id': self.closed_complex_id,
+        })
+        return base
