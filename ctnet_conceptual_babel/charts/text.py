@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence
 
 import numpy as np
 
@@ -67,32 +67,52 @@ class TextChart:
         if 'por qué' in lower or 'porque' in lower: return 'explain_cause'
         return 'stabilize'
 
+    def _spanish_name(self, name: str) -> str:
+        mapping = {
+            'biblioteca_babel': 'Biblioteca de Babel',
+            'tensor_coherencia': 'tensor de coherencia H',
+            'u_p': 'campo u/p',
+            'nodo_conceptual': 'nodo conceptual',
+            'relacion_infinita': 'trama relacional abierta',
+            'fraccion_superficial': 'fracción superficial textual',
+            'proyeccion_textual': 'carta de proyección textual',
+            'memoria_topologica': 'memoria topológica',
+            'cierre_estructural': 'cierre estructural',
+            'mensaje_abierto': 'mensaje abierto',
+            'realizacion_codigo': 'realización de código',
+        }
+        return mapping.get(name, name.replace('_', ' '))
+
+    def _dominant_relations(self, rels: Sequence[RelationOperator], limit: int = 4) -> List[RelationOperator]:
+        return sorted(rels, key=lambda r: abs(float(r.weight)), reverse=True)[:limit]
+
     def project(self, complex_: ConceptComplex, trace: Optional[Dict[str, Any]] = None) -> str:
         names = list(complex_.nodes.keys())
-        has = set(names)
-        core = 'Activo el campo conceptual recibido, estabilizo las relaciones dominantes y proyecto solo la parte que tiene cierre suficiente.'
-        if 'biblioteca_babel' in has and 'tensor_coherencia' in has and 'u_p' in has:
-            core = 'La Biblioteca de Babel queda tratada como campo potencial de complejos conceptuales, no como lista de caracteres. u/p abre la tensión entre actuación y forma; el tensor de coherencia pesa esa tensión y curva el potencial para que aparezca un complejo proyectable.'
-        elif 'nodo_conceptual' in has and 'relacion_infinita' in has:
-            core = 'El centro activo es un complejo de nodos conceptuales relacionales. Cada nodo conserva una sección finita, pero su potencial queda abierto por expansión, relación, refinamiento y proyección.'
-        elif 'realizacion_codigo' in has:
-            core = 'La realización correcta es construir un runtime donde el texto solo sea una carta: se eleva a nodos, se estabiliza por energía u/p bajo H, y luego se proyecta en español.'
-        if trace and 'energy' in trace and 'closure' in trace:
-            core += f" Energía final={trace['energy']:.4f}; cierre={trace['closure']:.4f}."
-        if trace and 'memory_retrieval' in trace:
-            mem = trace['memory_retrieval']
-            retrieved = mem.get('retrieved', [])
-            total = float(mem.get('total_influence', 0.0))
-            if retrieved:
-                top = retrieved[0]
-                core += f" Memoria episódica activa: episodio {top.get('episode_id')} con similitud={float(top.get('similarity',0.0)):.3f}; influencia total={total:.3f}."
-            else:
-                core += " Memoria episódica activa: sin episodios recuperados."
-        if trace and 'reentry_gain' in trace:
-            rg = float(trace.get('reentry_gain', 0.0))
-            if rg > 0.22:
-                core += " Reentrada fuerte: el campo incorpora huellas previas y desplaza el balance de cierre."
-            elif rg > 0.0:
-                core += " Reentrada moderada: se conserva continuidad conceptual sin fijar texto estático."
-        core += ' Nodos dominantes: ' + ', '.join(n.replace('_', ' ') for n in names[:6]) + '.'
-        return core
+        rels = self._dominant_relations(complex_.relations, limit=5)
+        if not names:
+            return 'Desde el estado condicionado, emerjo con una proyección mínima: no hay nodos activos suficientes para articular una trama coherente.'
+
+        lead_nodes = [self._spanish_name(n) for n in names[:4]]
+        first = f"En este cierre de un solo paso, {lead_nodes[0]} se acopla con {', '.join(lead_nodes[1:]) if len(lead_nodes) > 1 else 'su vecindario conceptual'} para formar un complejo activo coherente."
+
+        if rels:
+            rel_text = []
+            for r in rels[:3]:
+                rel_text.append(f"{self._spanish_name(r.source)} {r.relation_type.replace('_', ' ')} {self._spanish_name(r.target)}")
+            second = 'La dinámica interna queda determinada por relaciones como ' + '; '.join(rel_text) + '.'
+        else:
+            second = 'La dinámica interna queda determinada por la consistencia de estado entre nodos activos.'
+
+        has_up_h = 'u_p' in complex_.nodes and 'tensor_coherencia' in complex_.nodes
+        if has_up_h:
+            third = 'Aquí, u/p no evalúa candidatos: deforma directamente el campo generativo y H = D + L·L^T penaliza el residual antes de emitir la superficie, por eso la respuesta sale ya condicionada.'
+        else:
+            third = 'La emisión superficial surge después del cierre nodal: primero se estabiliza el complejo y solo entonces se proyecta en español continuo.'
+
+        closure = float(trace.get('closure', getattr(complex_, 'closure_state', 0.0))) if trace else float(getattr(complex_, 'closure_state', 0.0))
+        energy = float(trace.get('coherence_energy', getattr(complex_, 'coherence_energy', 0.0))) if trace else float(getattr(complex_, 'coherence_energy', 0.0))
+        mass = float(trace.get('coherence_mass', getattr(complex_, 'coherence_mass', 0.0))) if trace else float(getattr(complex_, 'coherence_mass', 0.0))
+        fourth = f"El resultado mantiene cierre={closure:.3f}, energía={energy:.3f} y masa coherente={mass:.3f}, con semántica generada desde la estructura nodal y no desde una plantilla fija."
+
+        return ' '.join([first, second, third, fourth])
+

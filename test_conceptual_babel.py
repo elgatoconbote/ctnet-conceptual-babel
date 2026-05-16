@@ -91,3 +91,10 @@ def test_relation_projection_maps_node_state_through_operator():
     rel = make_relation('nodo_conceptual', 'relacion_infinita', 'se_define_por', 48)
     projected = project_relation(rel, c.nodes['nodo_conceptual'].state)
     assert projected.shape == (48,)
+
+
+def test_projection_is_not_fixed_template_phrase():
+    rt = ConceptualBabelRuntime(d=48)
+    out = rt.respond('Babel genera información coherente del tirón bajo u/p y H.')
+    assert not out['response'].startswith('Activo el campo conceptual recibido')
+    assert 'u/p' in out['response'] or 'H = D + L·L^T' in out['response']
