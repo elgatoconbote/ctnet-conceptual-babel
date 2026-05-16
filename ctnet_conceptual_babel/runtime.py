@@ -88,10 +88,40 @@ class CoherenceFlow:
 class ConceptualMemory:
     def __init__(self, d: int): self.d=d; self.memory=np.zeros(d); self.episodes=[]
     def read(self): return self.memory.copy()
+    def retrieve(self, query_complex: ConceptComplex, top_k: int = 4) -> List[Dict[str, Any]]:
+        if not self.episodes:
+            return []
+        q = query_complex.active_state()
+        out = []
+        for ep in self.episodes:
+            ev = np.asarray(ep.get('state', np.zeros(self.d)), dtype=float)
+            qn = np.linalg.norm(q)
+            en = np.linalg.norm(ev)
+            sim = float(np.dot(q, ev) / (qn * en + 1e-12)) if qn > 1e-12 and en > 1e-12 else 0.0
+            influence = max(0.0, sim) * (0.35 + 0.65 * float(ep.get('closure', 0.5)))
+            out.append({'episode_id': ep.get('episode_id'), 'similarity': sim, 'influence': influence, 'nodes': list(ep.get('nodes', []))[:10]})
+        return sorted(out, key=lambda x: x['influence'], reverse=True)[:top_k]
+    def influence_vector(self, retrieved: Sequence[Dict[str, Any]]) -> np.ndarray:
+        if not retrieved:
+            return np.zeros(self.d)
+        acc = np.zeros(self.d)
+        idx = {ep.get('episode_id'): ep for ep in self.episodes}
+        for item in retrieved:
+            ep = idx.get(item.get('episode_id'))
+            if ep is None:
+                continue
+            acc += float(item.get('influence', 0.0)) * np.asarray(ep.get('state', np.zeros(self.d)), dtype=float)
+        return normalize(acc) if np.linalg.norm(acc) > 1e-9 else acc
     def reenter(self, complex_, surface, trace):
-        active=complex_.active_state(); self.memory = active if np.linalg.norm(self.memory) < 1e-9 else normalize(0.86*self.memory+0.14*active)
+        active=complex_.active_state()
+        influence=float(trace.get('memory_retrieval',{}).get('total_influence',0.0))
+        if np.linalg.norm(self.memory) < 1e-9:
+            self.memory = active
+        else:
+            reentry_gain=min(0.32, 0.14 + 0.22 * influence)
+            self.memory = normalize((1.0-reentry_gain)*self.memory+reentry_gain*active)
         for n in complex_.nodes.values(): n.memory_trace=min(1.0,n.memory_trace+0.04)
-        self.episodes.append({'surface':surface,'nodes':sorted(list(complex_.nodes.keys())),'relations':len(complex_.relations),'energy':trace.get('energy'),'closure':trace.get('closure')}); self.episodes=self.episodes[-200:]
+        self.episodes.append({'episode_id': len(self.episodes) + 1, 'surface':surface,'nodes':sorted(list(complex_.nodes.keys())),'relations':len(complex_.relations),'energy':trace.get('energy'),'closure':trace.get('closure'),'state':active.tolist(),'reentry_gain': float(trace.get('reentry_gain', 0.0))}); self.episodes=self.episodes[-200:]
     def as_serializable(self): return {'memory': self.memory.tolist(), 'episodes': self.episodes}
     @staticmethod
     def from_serializable(d:int,data:Dict[str,Any]): m=ConceptualMemory(d); m.memory=np.asarray(data.get('memory',m.memory),dtype=float); m.episodes=list(data.get('episodes',[])); return m
@@ -103,7 +133,17 @@ class ConceptualBabelRuntime:
         self.d=d; self.chart=TextChart(d); self.flow=CoherenceFlow(d,beam=beam,steps=steps,temp=1.0); self.memory=ConceptualMemory(d); self.state_path=Path(state_path) if state_path else None
         if self.state_path and self.state_path.exists(): self.load(self.state_path)
     def respond(self, surface: str) -> Dict[str, Any]:
-        complex0=self.chart.lift(surface); best,trace=self.flow.run(complex0,context=surface,memory=self.memory.read()); response=self.chart.project(best,trace); self.memory.reenter(best,response,trace)
+        complex0=self.chart.lift(surface)
+        retrieved=self.memory.retrieve(complex0,top_k=4)
+        influence_vec=self.memory.influence_vector(retrieved)
+        base_memory=self.memory.read()
+        flow_memory=normalize(0.80 * base_memory + 0.20 * influence_vec) if np.linalg.norm(influence_vec) > 1e-9 else base_memory
+        best,trace=self.flow.run(complex0,context=surface,memory=flow_memory)
+        total_influence=float(sum(x['influence'] for x in retrieved))
+        trace['memory_retrieval']={'retrieved':retrieved,'total_influence':total_influence}
+        trace['reentry_gain']=min(0.32, 0.14 + 0.22 * total_influence)
+        response=self.chart.project(best,trace)
+        self.memory.reenter(best,response,trace)
         if self.state_path: self.save(self.state_path)
         return {'input':surface,'response':response,'complex':best.as_serializable(),'trace':trace,'memory_episodes':len(self.memory.episodes)}
     def save(self, path: Path): path.parent.mkdir(parents=True, exist_ok=True); path.write_text(json.dumps({'d':self.d,'memory':self.memory.as_serializable()},ensure_ascii=False,indent=2),encoding='utf-8')

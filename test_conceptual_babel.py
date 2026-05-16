@@ -88,6 +88,52 @@ def test_relation_projection_maps_node_state_through_operator():
     assert np.linalg.norm(projected) > 0
 
 
+def test_multi_turn_memory_accumulates_and_traces_retrieval():
+    rt = ConceptualBabelRuntime(d=48, beam=5, steps=4)
+    a = rt.respond('Babel como campo conceptual relacional, no lista de cadenas.')
+    b = rt.respond('Retoma Babel y tensor de coherencia en continuidad conceptual.')
+    assert a['memory_episodes'] == 1 and b['memory_episodes'] == 2
+    assert 'memory_retrieval' in b['trace']
+    assert isinstance(b['trace']['memory_retrieval']['retrieved'], list)
+
+
+def test_episode_retrieval_has_ids_similarity_and_influence():
+    rt = ConceptualBabelRuntime(d=48, beam=5, steps=4)
+    rt.respond('primer episodio: nodo conceptual y relación infinita')
+    out = rt.respond('segundo episodio: conecta nodo conceptual con relación')
+    retrieved = out['trace']['memory_retrieval']['retrieved']
+    assert retrieved
+    top = retrieved[0]
+    assert {'episode_id', 'similarity', 'influence', 'nodes'}.issubset(top.keys())
+
+
+def test_reentry_changes_later_trace_or_response():
+    rt = ConceptualBabelRuntime(d=48, beam=5, steps=4)
+    r1 = rt.respond('Babel tensor coherencia y u/p en campo conceptual')
+    r2 = rt.respond('Babel tensor coherencia y u/p en campo conceptual')
+    assert r2['trace']['reentry_gain'] >= r1['trace']['reentry_gain']
+    assert r1['response'] != r2['response'] or r1['trace']['memory_retrieval'] != r2['trace']['memory_retrieval']
+
+
+def test_save_load_preserves_memory_and_episode_vectors(tmp_path):
+    p = tmp_path / 'rt.json'
+    rt = ConceptualBabelRuntime(d=48, beam=5, steps=4, state_path=str(p))
+    rt.respond('memoria topológica para babel conceptual')
+    rt.save(p)
+    rt2 = ConceptualBabelRuntime(d=48, beam=5, steps=4, state_path=str(p))
+    assert len(rt2.memory.episodes) == 1
+    assert 'state' in rt2.memory.episodes[0]
+
+
+def test_projection_not_static_under_state_change():
+    rt = ConceptualBabelRuntime(d=48, beam=5, steps=4)
+    prompt = 'La biblioteca de Babel opera como campo conceptual.'
+    r1 = rt.respond(prompt)['response']
+    rt.respond('mensaje intermedio sobre memoria y reentrada conceptual')
+    r3 = rt.respond(prompt)['response']
+    assert r1 != r3
+
+
 if __name__ == '__main__':
     import pytest
     raise SystemExit(pytest.main([__file__]))
