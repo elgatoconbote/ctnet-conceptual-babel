@@ -98,3 +98,27 @@ def test_projection_is_not_fixed_template_phrase():
     out = rt.respond('Babel genera información coherente del tirón bajo u/p y H.')
     assert not out['response'].startswith('Activo el campo conceptual recibido')
     assert 'u/p' in out['response'] or 'H = D + L·L^T' in out['response']
+
+
+def test_response_rejects_previous_fixed_frames():
+    out = ConceptualBabelRuntime(d=48).respond('Babel genera información coherente del tirón bajo u/p y H.')['response']
+    assert 'En este cierre de un solo paso' not in out
+    assert 'La dinámica interna queda determinada' not in out
+    assert 'El resultado mantiene cierre' not in out
+
+
+def test_specific_prompt_contains_required_concepts():
+    out = ConceptualBabelRuntime(d=48).respond('Babel genera información coherente del tirón bajo u/p y H.')['response'].lower()
+    assert ('babel' in out) or ('biblioteca' in out)
+    assert ('generador' in out) or ('genera' in out)
+    assert 'u/p' in out
+    assert (' h ' in f' {out} ') or ('tensor' in out)
+    assert ('coherente' in out) or ('coherencia' in out)
+    assert ('no filtra después' in out) or ('no se generan candidatos para filtrarlos después' in out) or ('no por selección posterior' in out)
+
+
+def test_textchart_project_is_thin_adapter_not_main_generator():
+    src = Path('ctnet_conceptual_babel/charts/text.py').read_text(encoding='utf-8')
+    assert 'BabelSurfaceGenerator' in src
+    assert 'emit(complex_, trace or {})' in src
+    assert 'En este cierre de un solo paso' not in src
